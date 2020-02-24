@@ -1,7 +1,7 @@
 'use strict';
 
 const AWS = require('aws-sdk');
-const cloudwatch = new AWS.CloudWatch({apiVersion: '2013-02-22', region: 'eu-west-1'});
+const cloudwatch = new AWS.CloudWatch({apiVersion: '2013-02-22', region: 'us-east-1'});
 
 var conf = {
     protocol : process.env.PROTOCOL || 'http',
