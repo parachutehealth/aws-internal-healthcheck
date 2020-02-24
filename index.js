@@ -12,22 +12,26 @@ var conf = {
     invertHealthCheckStatus: process.env.INVERT_HEALTHCHECK_STATUS === 'true' || false,
     metricName : process.env.METRIC_NAME || 'MyService',
     metricNameSpace : process.env.METRIC_NAMESPACE || 'HealthCheck',
+    metricEnvironment: process.env.METRIC_ENVIRONMENT,
     timeout: process.env.TIMEOUT || 10
 }
 
-var url = `${conf.protocol}://${conf.host}:${conf.port}${conf.path}`
-const http = conf.protocol === 'https' ? require('follow-redirects').https : require('follow-redirects').http
+var url = `${conf.protocol}://${conf.host}:${conf.port}${conf.path}`;
+const http = conf.protocol === 'https' ? require('follow-redirects').https : require('follow-redirects').http;
 
 exports.handler = (event, context, callback) => {
-    
-    console.log(`Checking ${url}`)
-    var req = http.get(url, res => {
+    console.log(`Checking ${url}`);
+    if (callback === undefined) {
+        callback = console.log
+    }
 
+    var req = http.get(url, res => {
         if (conf.stringMatching) {
-            let body = ''
+            console.log("String Matching...");
+            let body = '';
             res.on('data', chunk => {
                 body += chunk
-            })
+            });
             res.on('end', chunk => {
                 if (body.includes(conf.stringMatching)) {
                     ProcessStatus (true, res.statusCode, "string found in body", callback)
@@ -36,33 +40,43 @@ exports.handler = (event, context, callback) => {
                 }
             })
         } else {
+            console.log("No String Matching...")
             if (res.statusCode >= 200 && res.statusCode < 400 ) {
+                console.log("Good Response Code");
                 ProcessStatus (true, res.statusCode, null, callback)
             } else {
+                console.log("Bad Response Code");
                 ProcessStatus (false, res.statusCode, new Error(`${res.statusMessage}`), callback)
             }
         }
-    })
+    });
     req.on('error', e => {
+        console.log("Request Error", e);
         ProcessStatus (false, null, e, callback)
-    })
+    });
     req.on('socket',function(socket){
+        console.log("Request Socket");
         socket.setTimeout(conf.timeout * 1000 - 500,function(){
+            console.log("Aborting the request.");
             req.abort();
         })
     })
 };
 
 var ProcessStatus = (statusOK, statusCode, err, cb) => {
-    let isOK = conf.invertHealthCheckStatus ? !statusOK: statusOK
+    let isOK = conf.invertHealthCheckStatus ? !statusOK: statusOK;
     let metrics = {
         MetricData : [
             {
                 MetricName: conf.metricName,
                 Dimensions: [
                     {
-                      Name: 'Url',
-                      Value: url 
+                      Name: 'Domain',
+                      Value: conf.host
+                    },
+                    {
+                      Name: "Environment",
+                      Value: conf.metricEnvironment
                     }
                 ],
                 Value: isOK ? 1: 0
@@ -74,10 +88,9 @@ var ProcessStatus = (statusOK, statusCode, err, cb) => {
         if (errcw) {
             cb(errcw, data)
         }
-        console.log(data)
-        let res = `Healthcheck ${isOK ? 'OK': 'KO'} : ${statusCode || ''} ${err || ''}`
-        console.log(res)
+        console.log("data:", data);
+        let res = `Healthcheck ${isOK ? 'OK': 'KO'} : ${statusCode || ''} ${err || ''}`;
+        console.log("response:", res);
         cb(null,res)
     })
-    
-}
+};

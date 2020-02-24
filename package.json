@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sparklane/aws-internal-healthcheck.git"
+    "url": "git+https://github.com/parachutehealth/aws-internal-healthcheck.git"
   },
   "keywords": [
     "aws",
@@ -19,12 +19,9 @@
   ],
   "author": "devops@sparklane.fr",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/Sparklane/aws-internal-healthcheck/issues"
-  },
   "homepage": "https://github.com/Sparklane/aws-internal-healthcheck#readme",
   "dependencies": {
-    "aws-sdk": "^2.215.1",
-    "follow-redirects": "^1.4.1"
+    "aws-sdk": "^2.625.0",
+    "follow-redirects": "^1.10.0"
   }
 }
