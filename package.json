@@ -21,7 +21,6 @@
   "license": "ISC",
   "homepage": "https://github.com/Sparklane/aws-internal-healthcheck#readme",
   "dependencies": {
-    "aws-sdk": "^2.625.0",
-    "follow-redirects": "^1.10.0"
+    "aws-sdk": "^2.625.0"
   }
 }

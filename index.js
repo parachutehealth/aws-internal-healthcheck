@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require("fs");
 const AWS = require('aws-sdk');
 const cloudwatch = new AWS.CloudWatch({apiVersion: '2013-02-22', region: 'us-east-1'});
 
@@ -7,60 +8,51 @@ var conf = {
     protocol : process.env.PROTOCOL || 'http',
     host: process.env.HOSTNAME || 'localhost',
     port: process.env.PORT || ((process.env.PROTOCOL === 'https')?'443':'80'),
-    path: process.env.URL_PATH || '',
-    stringMatching: process.env.STRING_MATCHING,
+    path: process.env.URL_PATH || '/',
+    caCertPath: process.env.CA_CERT_PATH,
     invertHealthCheckStatus: process.env.INVERT_HEALTHCHECK_STATUS === 'true' || false,
     metricName : process.env.METRIC_NAME || 'MyService',
     metricNameSpace : process.env.METRIC_NAMESPACE || 'HealthCheck',
     metricEnvironment: process.env.METRIC_ENVIRONMENT,
     timeout: process.env.TIMEOUT || 10
-}
+};
 
 var url = `${conf.protocol}://${conf.host}:${conf.port}${conf.path}`;
-const http = conf.protocol === 'https' ? require('follow-redirects').https : require('follow-redirects').http;
+const http = conf.protocol === 'https' ? require('https') : require('http');
 
 exports.handler = (event, context, callback) => {
     console.log(`Checking ${url}`);
-    if (callback === undefined) {
-        callback = console.log
+
+    const options = {
+        hostname: conf.host,
+        port: conf.port,
+        path: conf.path,
+        method: 'GET',
+    };
+    if ( conf.protocol === 'https' && conf.caCertPath ) {
+        options['ca'] = fs.readFileSync(conf.caCertPath);
     }
 
-    var req = http.get(url, res => {
-        if (conf.stringMatching) {
-            console.log("String Matching...");
-            let body = '';
-            res.on('data', chunk => {
-                body += chunk
-            });
-            res.on('end', chunk => {
-                if (body.includes(conf.stringMatching)) {
-                    ProcessStatus (true, res.statusCode, "string found in body", callback)
-                } else {
-                    ProcessStatus (false, res.statusCode, new Error(`cannot find string in response: '${conf.stringMatching}'`), callback)
-                }
-            })
-        } else {
-            console.log("No String Matching...")
+    http.request(options, res => {
+        res.on('data', data => {
             if (res.statusCode >= 200 && res.statusCode < 400 ) {
-                console.log("Good Response Code");
                 ProcessStatus (true, res.statusCode, null, callback)
             } else {
-                console.log("Bad Response Code");
                 ProcessStatus (false, res.statusCode, new Error(`${res.statusMessage}`), callback)
             }
-        }
-    });
-    req.on('error', e => {
-        console.log("Request Error", e);
-        ProcessStatus (false, null, e, callback)
-    });
-    req.on('socket',function(socket){
-        console.log("Request Socket");
-        socket.setTimeout(conf.timeout * 1000 - 500,function(){
-            console.log("Aborting the request.");
-            req.abort();
+        });
+        res.on('error', e => {
+            console.log("Request Error", e);
+            ProcessStatus (false, null, e, callback)
+        });
+        res.on('socket',function(socket){
+            socket.setTimeout(conf.timeout * 1000 - 500,function(){
+                console.log("Aborting the request - Timeout.");
+                req.abort();
+            })
         })
-    })
+    }).end();
+
 };
 
 var ProcessStatus = (statusOK, statusCode, err, cb) => {

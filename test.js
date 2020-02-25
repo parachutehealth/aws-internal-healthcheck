@@ -5,5 +5,3 @@ function myLog(a, b){
 }
 
 console.log(handle.handler({}, {}, myLog ));
-
-console.log(handle.handler({} ));

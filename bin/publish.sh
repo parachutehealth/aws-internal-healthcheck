@@ -2,6 +2,5 @@
 
 rm -f function.zip
 
-zip -r function.zip index.js node_modules
-
+zip -r function.zip index.js internal.crt node_modules
 
