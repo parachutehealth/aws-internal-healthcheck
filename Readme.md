@@ -2,7 +2,7 @@
 
 Perform healthchecks on private IP or private FQDN (Private Route53). Healthchecks status are pushed to Cloudwatch custom metrics.
 
-Made with ❤️ by Sparklane. Available on the [AWS Serverless Application Repository](https://aws.amazon.com/serverless)
+Parachute Health modified from [original source](https://github.com/Sparklane/aws-internal-healthcheck).
 
 ## Setup
 
@@ -23,10 +23,8 @@ Once this healthcheck metrics are in Cloudwatch, it's up to you to:
 |`HOSTNAME` | `localhost` | Hostname or IP address |
 |`PORT` | `80` | Port to test |
 |`URL_PATH` | `/` | Path to test | 
-|`STRING_MATCHING` | _undefined_ | Will return OK if the string is contained in the response's body otherwise |
+|`CA_CERT_PATH` | `internal.crt` | Filesystem path to CA root cert |
 |`INVERT_HEALTHCHECK_STATUS` | `false` | this will invert healthcheck result (ok will become ko) |
 |`METRIC_NAME` | `MyService` | Name of the Cloudwatch metrics |
+|`METRIC_ENVIRONMENT` | `production` | Environment name to separate Cloudwatch metrics |
 |`METRIC_NAMESPACE` | `HealthCheck` | Namespace of the Cloudwatch Metric |
-
-
-
