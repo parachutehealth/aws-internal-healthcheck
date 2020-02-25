@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-rm -f function.zip
+rm -f healthcheck-function.zip
 
-zip -r function.zip index.js internal.crt node_modules
+zip -r healthcheck-function.zip index.js internal.crt node_modules
 

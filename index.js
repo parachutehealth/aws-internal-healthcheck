@@ -10,7 +10,6 @@ var conf = {
     port: process.env.PORT || ((process.env.PROTOCOL === 'https')?'443':'80'),
     path: process.env.URL_PATH || '/',
     caCertPath: process.env.CA_CERT_PATH,
-    invertHealthCheckStatus: process.env.INVERT_HEALTHCHECK_STATUS === 'true' || false,
     metricName : process.env.METRIC_NAME || 'MyService',
     metricNameSpace : process.env.METRIC_NAMESPACE || 'HealthCheck',
     metricEnvironment: process.env.METRIC_ENVIRONMENT,
@@ -19,6 +18,46 @@ var conf = {
 
 var url = `${conf.protocol}://${conf.host}:${conf.port}${conf.path}`;
 const http = conf.protocol === 'https' ? require('https') : require('http');
+
+exports.certHandler = (event, context, callback) => {
+    console.log(`Checking Cert on ${url}`);
+
+    if (conf.protocol != 'https' || conf.port != '443') {
+        var msg = 'Skipping Cert Handler. Non HTTPS request.';
+        console.log(msg);
+        callback(msg, 0);
+        return;
+    }
+
+    const options = {
+        hostname: conf.host,
+        port: conf.port,
+        path: "/",
+        method: 'GET',
+    };
+    if ( conf.caCertPath ) {
+        options['ca'] = fs.readFileSync(conf.caCertPath);
+    }
+
+    var req = http.request(options, res => {
+        var certificate = res.connection.getPeerCertificate();
+        var expirationDate = Date.parse(certificate.valid_to);
+        const oneDay = 24 * 60 * 60 * 1000;
+        var today = Date.now();
+        var daysRemaining = Math.round(Math.abs((expirationDate - today) / oneDay));
+        ProcessStatus (true, daysRemaining, null, callback)
+    }).end();
+    req.on('error', e => {
+        console.log("Request Error", e);
+        ProcessStatus (false, 0, e, callback)
+    });
+    req.on('socket',function(socket){
+        socket.setTimeout(conf.timeout * 1000 - 500,function(){
+            console.log("Aborting the request - Timeout.");
+            req.abort();
+        })
+    })
+};
 
 exports.handler = (event, context, callback) => {
     console.log(`Checking ${url}`);
@@ -33,30 +72,29 @@ exports.handler = (event, context, callback) => {
         options['ca'] = fs.readFileSync(conf.caCertPath);
     }
 
-    http.request(options, res => {
+    var req = http.request(options, res => {
         res.on('data', data => {
             if (res.statusCode >= 200 && res.statusCode < 400 ) {
-                ProcessStatus (true, res.statusCode, null, callback)
+                ProcessStatus (true, 1, null, callback)
             } else {
-                ProcessStatus (false, res.statusCode, new Error(`${res.statusMessage}`), callback)
+                ProcessStatus (false, 0, new Error(`${res.statusMessage}`), callback)
             }
         });
-        res.on('error', e => {
-            console.log("Request Error", e);
-            ProcessStatus (false, null, e, callback)
-        });
-        res.on('socket',function(socket){
-            socket.setTimeout(conf.timeout * 1000 - 500,function(){
-                console.log("Aborting the request - Timeout.");
-                req.abort();
-            })
-        })
     }).end();
-
+    req.on('error', e => {
+        console.log("Request Error", e);
+        ProcessStatus (false, 0, e, callback)
+    });
+    req.on('socket',function(socket){
+        socket.setTimeout(conf.timeout * 1000 - 500,function(){
+            console.log("Aborting the request - Timeout.");
+            req.abort();
+        })
+    })
 };
 
-var ProcessStatus = (statusOK, statusCode, err, cb) => {
-    let isOK = conf.invertHealthCheckStatus ? !statusOK: statusOK;
+var ProcessStatus = (statusOK, reportValue, err, cb) => {
+    let metricValue = statusOK ? reportValue : 0;
     let metrics = {
         MetricData : [
             {
@@ -71,7 +109,7 @@ var ProcessStatus = (statusOK, statusCode, err, cb) => {
                       Value: conf.metricEnvironment
                     }
                 ],
-                Value: isOK ? 1: 0
+                Value: metricValue
             }
         ],
         Namespace: conf.metricNameSpace,
@@ -81,7 +119,7 @@ var ProcessStatus = (statusOK, statusCode, err, cb) => {
             cb(errcw, data)
         }
         console.log("data:", data);
-        let res = `Healthcheck ${isOK ? 'OK': 'KO'} : ${statusCode || ''} ${err || ''}`;
+        let res = `Healthcheck ${statusOK ? 'OK': 'KO'} : ${metricValue} ${err || ''}`;
         console.log("response:", res);
         cb(null,res)
     })

@@ -24,7 +24,6 @@ Once this healthcheck metrics are in Cloudwatch, it's up to you to:
 |`PORT` | `80` | Port to test |
 |`URL_PATH` | `/` | Path to test | 
 |`CA_CERT_PATH` | `internal.crt` | Filesystem path to CA root cert |
-|`INVERT_HEALTHCHECK_STATUS` | `false` | this will invert healthcheck result (ok will become ko) |
 |`METRIC_NAME` | `MyService` | Name of the Cloudwatch metrics |
 |`METRIC_ENVIRONMENT` | `production` | Environment name to separate Cloudwatch metrics |
 |`METRIC_NAMESPACE` | `HealthCheck` | Namespace of the Cloudwatch Metric |
